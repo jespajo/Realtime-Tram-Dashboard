@@ -13,25 +13,25 @@ Each message begins with a '**MSGTYPE**' content, and all messages are made up i
 
 For example, a raw Location update message looks like this:
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**7**MSGTYPE**8**LOCATION**7**TRAM_ID**7**TRAMABC**5**VALUE**4**CITY
+***7**MSGTYPE**8**LOCATION**7**TRAM_ID**7**TRAMABC**5**VALUE**4**CITY
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The first byte, '**7**', is the length of the content '**MSGTYPE**'. 
+*The first byte, '**7**', is the length of the content '**MSGTYPE**'. 
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**MSGTYPE**', you will find another byte, '**8**'.
+*After the last byte of '**MSGTYPE**', you will find another byte, '**8**'.
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'**8**' is the length of the next content, '**LOCATION**'. 
+*'**8**' is the length of the next content, '**LOCATION**'. 
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.
+*After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Parsing the stream in this way will yield a message of:
+*Parsing the stream in this way will yield a message of:
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MSGTYPE => **LOCATION*8
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRAM_ID => *8TRAMABC**
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VALUE => **CITY**
+*MSGTYPE => **LOCATION*8
+*TRAM_ID => *8TRAMABC**
+*VALUE => **CITY**
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Meaning, this is a *location* message that tells us **TRAMABC** is in the **CITY**.
+*Meaning, this is a *location* message that tells us **TRAMABC** is in the **CITY**.
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Once you encounter a content of 'MSGTYPE' again, this means we are in a new message, and finished parsing the current message
+*Once you encounter a content of 'MSGTYPE' again, this means we are in a new message, and finished parsing the current message
 
 The task is to read from the TCP socket, and display a **realtime** updating dashboard (console) of all trams (as you will get messages for multiple trams, indicated by *TRAM_ID*), their current location and passenger count.
 
