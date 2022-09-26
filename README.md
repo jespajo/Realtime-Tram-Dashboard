@@ -20,7 +20,7 @@ For example, a raw Location update message looks like this:
     - After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.
 - Parsing the stream in this way will yield a message of:
     - MSGTYPE => **LOCATION**
-    - TRAM_ID => **8TRAMABC**
+    - TRAM_ID => **TRAMABC**
     - VALUE => **CITY**
 - Meaning, this is a *location* message that tells us **TRAMABC** is in the **CITY**.
 - Once you encounter a content of 'MSGTYPE' again, this means we are in a new message, and finished parsing the current message
