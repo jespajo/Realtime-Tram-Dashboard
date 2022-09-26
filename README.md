@@ -14,10 +14,15 @@ Each message begins with a '**MSGTYPE**' content, and all messages are made up i
 For example, a raw Location update message looks like this:
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**7**MSGTYPE**8**LOCATION**7**TRAM_ID**7**TRAMABC**5**VALUE**4**CITY
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The first byte, '**7**', is the length of the content '**MSGTYPE**'.\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**MSGTYPE**', you will find another byte, '**8**'.\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'**8**' is the length of the next content, '**LOCATION**'.\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.\
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The first byte, '**7**', is the length of the content '**MSGTYPE**'. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**MSGTYPE**', you will find another byte, '**8**'.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'**8**' is the length of the next content, '**LOCATION**'. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Parsing the stream in this way will yield a message of:
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MSGTYPE => **LOCATION*8
