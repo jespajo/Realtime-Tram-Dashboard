@@ -51,7 +51,7 @@
             Location: Flinders Street
             Passenger Count: 22
 
-    To start the server to consume from, please install python, and run python3 server.py
+    To start the server to consume from, please install python, and run python3 server.py 8081
 
     Feel free to modify the code below, which already implements a TCP socket consumer and dumps the content to a string & byte array
 */
@@ -61,7 +61,7 @@ void error(char* msg) {
     exit(1);
 }
 
-void dump_string(char* name) {
+void dump_buffer(char* name) {
     int e;
     size_t len = strlen(name);
     for (size_t i = 0; i < len; i++) {
