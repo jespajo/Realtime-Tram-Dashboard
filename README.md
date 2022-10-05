@@ -13,17 +13,17 @@ Each message begins with a '**MSGTYPE**' content, and all messages are made up i
 
 For example, a raw Location update message looks like this:
 
-- **7**MSGTYPE**8**LOCATION**7**TRAM_ID**7**TRAMABC**5**VALUE**4**CITY
-    - The first byte, '**7**', is the length of the content '**MSGTYPE**'. 
-    - After the last byte of '**MSGTYPE**', you will find another byte, '**8**'.
-    - '**8**' is the length of the next content, '**LOCATION**'. 
-    - After the last byte of '**LOCATION**', you will find another byte, '**7**', the length of the next content '**TRAM_ID**', and so on.
+- `\x07MSGTYPE\x08LOCATION\x07TRAM_ID\x07TRAMABC\x05VALUE\x04CITY`
+    - The first byte, `\x07`, is the length of the content `MSGTYPE`. 
+    - After the last byte of '`MSGTYPE`, you will find another byte, `\x08`.
+    - `\x08` is the length of the next content, `LOCATION`. 
+    - After the last byte of `LOCATION`, you will find another byte, `\x07`, the length of the next content `TRAM_ID`, and so on.
 - Parsing the stream in this way will yield a message of:
     - MSGTYPE => **LOCATION**
     - TRAM_ID => **TRAMABC**
     - VALUE => **CITY**
 - Meaning, this is a *location* message that tells us **TRAMABC** is in the **CITY**.
-- Once you encounter a content of 'MSGTYPE' again, this means we are in a new message, and finished parsing the current message
+- Once you encounter a content of `MSGTYPE` again, this means we are in a new message, and finished parsing the current message
 
 The task is to read from the TCP socket, and display a **realtime** updating dashboard (console) of all trams (as you will get messages for multiple trams, indicated by *TRAM_ID*), their current location and passenger count.
 
