@@ -56,11 +56,6 @@
     Feel free to modify the code below, which already implements a TCP socket consumer and dumps the content to a string & byte array
 */
 
-void error(char* msg) {
-    perror(msg);
-    exit(1);
-}
-
 void dump_buffer(char* name) {
     int e;
     size_t len = strlen(name);
@@ -79,40 +74,52 @@ void dump_buffer(char* name) {
 }
 
 int main(int argc, char *argv[]){
-	if(argc < 2){
+	if (argc < 2) {
         fprintf(stderr,"No port provided\n");
         exit(1);
 	}
-	int sockfd, portno, n;
+
+    char *host = "127.0.0.1";
+    char *port = argv[1];
+
+	struct sockaddr serv_addr;
+    {
+        struct addrinfo hints = {0};
+	    hints.ai_family   = AF_INET;
+	    hints.ai_socktype = SOCK_STREAM;
+
+        struct addrinfo *addrinfo;
+        int result = getaddrinfo(host, port, &hints, &addrinfo);
+        if (result != 0) {
+            fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(result));
+            exit(1);
+        }
+
+        serv_addr = *addrinfo->ai_addr;
+
+        freeaddrinfo(addrinfo);
+    }
+
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd < 0){
+		perror("Socket failed");
+        exit(1);
+	}
+
+    int result = connect(sockfd, &serv_addr, sizeof(serv_addr));
+	if (result < 0) {
+		perror("Connection failed");
+        exit(1);
+    }
+
 	char buffer[255];
-
-	struct sockaddr_in serv_addr;
-	struct hostent* server;
-
-	portno = atoi(argv[1]);
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd<0){
-		error("Socket failed \n");
-	}
-
-	server = gethostbyname("127.0.0.1");
-	if(server == NULL){
-		error("No such host\n");
-	}
-
-	bzero((char*) &serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	bcopy((char*) server->h_addr, (char*) &serv_addr.sin_addr.s_addr, server->h_length);
-	serv_addr.sin_port = htons(portno);
-
-	if(connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))<0)
-		error("Connection failed\n");
-
-	while(1){
-		bzero(buffer, sizeof(buffer));
-		n = read(sockfd, buffer, 255);
-		if(n<0)
-			error("Error reading from Server");
+	while (1) {
+		memset(buffer, 0, sizeof(buffer));
+		int n = read(sockfd, buffer, sizeof(buffer));
+		if (n < 0) {
+			perror("Error reading from Server");
+            exit(1);
+        }
 		dump_buffer(buffer);
 	}
 
