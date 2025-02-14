@@ -8,9 +8,9 @@
 #include <netdb.h>
 #include <ctype.h>
 
-/* 
-    The Tram data server (server.py) publishes messages over a custom protocol. 
-    
+/*
+    The Tram data server (server.py) publishes messages over a custom protocol.
+
     These messages are either:
 
     1. Tram Passenger Count updates (MSGTYPE=PASSENGER_COUNT)
@@ -24,9 +24,9 @@
 
         7MSGTYPE8LOCATION7TRAM_ID7TRAMABC5VALUE4CITY
 
-        The first byte, '7', is the length of the content 'MSGTYPE'. 
+        The first byte, '7', is the length of the content 'MSGTYPE'.
         After the last byte of 'MSGTYPE', you will find another byte, '8'.
-        '8' is the length of the next content, 'LOCATION'. 
+        '8' is the length of the next content, 'LOCATION'.
         After the last byte of 'LOCATION', you will find another byte, '7', the length of the next content 'TRAM_ID', and so on.
 
         Parsing the stream in this way will yield a message of:
@@ -82,39 +82,39 @@ int main(int argc, char *argv[]){
 	if(argc < 2){
         fprintf(stderr,"No port provided\n");
         exit(1);
-	}	
+	}
 	int sockfd, portno, n;
 	char buffer[255];
-	
+
 	struct sockaddr_in serv_addr;
 	struct hostent* server;
-	
+
 	portno = atoi(argv[1]);
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockfd<0){
 		error("Socket failed \n");
 	}
-	
+
 	server = gethostbyname("127.0.0.1");
 	if(server == NULL){
 		error("No such host\n");
 	}
-	
+
 	bzero((char*) &serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
 	bcopy((char*) server->h_addr, (char*) &serv_addr.sin_addr.s_addr, server->h_length);
 	serv_addr.sin_port = htons(portno);
-	
+
 	if(connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))<0)
 		error("Connection failed\n");
-	
+
 	while(1){
-		bzero(buffer, 256);
+		bzero(buffer, sizeof(buffer));
 		n = read(sockfd, buffer, 255);
 		if(n<0)
 			error("Error reading from Server");
 		dump_buffer(buffer);
 	}
-	
+
 	return 0;
 }
