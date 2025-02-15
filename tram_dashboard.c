@@ -60,7 +60,7 @@
     Feel free to modify the code below, which already implements a TCP socket consumer and dumps the content to a string & byte array
 */
 
-#define MESSAGE_BUFFER_SIZE 512  // The maximum size of any message.
+#define MESSAGE_BUFFER_SIZE 512  // The maximum size of any message. Actually the real maximum is slightly lower because we insert a null byte after each content.
 
 struct message {
     char    buffer[MESSAGE_BUFFER_SIZE];
@@ -104,15 +104,20 @@ char *read_content(struct message *message, int sockfd)
         exit(1);
     }
 
-    int  *index   = &message->buffer_index;
-    char *content = &message->buffer[*index];
+    int *index = &message->buffer_index;
 
-    if (*index + length >= MESSAGE_BUFFER_SIZE) {
+    if (*index + length + 2 >= MESSAGE_BUFFER_SIZE) { // The 2 bytes are the content-length byte (which we keep before the content) and a null byte (which we add after it).
         fprintf(stderr, "There's not enough space in the buffer.\n");
         exit(1);
     }
 
-    // Read in a loop in case the OS gives us the data on the socket before we've read a full content.
+    // Add the content-length byte.
+    message->buffer[*index] = length;
+    *index += 1;
+
+    char *content = &message->buffer[*index];
+
+    // Read in a loop in case the OS gives us the data on the socket before we've read the content fully.
     int read_count = 0;
     while (read_count < length) {
         int n = read(sockfd, content+read_count, length-read_count);
@@ -124,6 +129,7 @@ char *read_content(struct message *message, int sockfd)
     }
     *index += length;
 
+    // Add a null byte for the small convenience of being able to use strcmp().
     content[length] = '\0';
     *index += 1;
 
@@ -176,7 +182,7 @@ struct tram *add_tram(struct tram_array *array, char *tram_id)
     memset(tram, 0, sizeof(*tram));
     array->count += 1;
 
-    // |Cleanup: Using strlen() here is kind of dumb because this information was in the message and we discarded it. We could keep the length in the byte before the tram_id string or create some kind of string struct... but for now we're just embracing C-style strings.
+    // Using strlen() here is kind of dumb because this information is in the message and probably accessible in the byte just before the string. But we can't guarantee that the tram_id argument passed to this function is a pointer into the message data and not just some random string. We could pass a tram_id_length argument to this function explicitly... but this is fine.
     tram->id_length = strlen(tram_id);
     memcpy(tram->id, tram_id, tram->id_length);
 
@@ -250,7 +256,7 @@ int main(int argc, char *argv[])
 
         switch (message->type) {
             case LOCATION: {
-                tram->location_length = strlen(message->value);//|Cleanup: Keep the length.
+                tram->location_length = (uint8_t)message->value[-1];
                 memcpy(tram->location, message->value, tram->location_length);
                 tram->location[tram->location_length] = '\0';
                 break;
@@ -263,7 +269,8 @@ int main(int argc, char *argv[])
                 valid &= (0 <= number);
                 valid &= (number <= INT_MAX); //|Fixme: Not sure 2 billion is the right place to draw the line here...
                 valid &= (*message->value != '\0');
-                valid &= (*end == '\0'); //|Cleanup: Use the length instead.
+                valid &= (*end == '\0');
+                valid &= (end - message->value == (uint8_t)message->value[-1]);
                 if (!valid) {
                     fprintf(stderr, "Unexpected passenger count for %s: \"%s\"\n", tram->id, message->value);
                     exit(1);
