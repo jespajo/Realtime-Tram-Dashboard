@@ -77,6 +77,24 @@ struct message {
     char   *value;
 };
 
+struct tram {
+    // It's wasteful to store these IDs as strings if we know they're always numbers,
+    // but until we know that for sure...
+    char id[255];
+    int  id_length;
+
+    char location[255];
+    int  location_length;
+
+    int  passenger_count;
+};
+
+struct tram_array {
+    struct tram *data;
+    int          limit;
+    int          count;
+};
+
 char *read_content(struct message *message, int sockfd)
 {
     uint8_t length;
@@ -147,48 +165,10 @@ void read_message(struct message *message, int sockfd)
     message->value = read_content(message, sockfd);
 }
 
-struct tram {
-    // It's wasteful to store these IDs as strings if we know they're always numbers,
-    // but until we know that for sure...
-    char id[255];
-    int  id_length;
-
-    char location[255];
-    int  location_length;
-
-    int  passenger_count;
-};
-
-struct tram_array {
-    struct tram *data;
-    int          limit;
-    int          count;
-};
-
-bool is_power_of_two(int x)
-{
-    if (x <= 0)  return false;
-    return !(x & (x - 1));
-}
-
-int round_up_pow2(int x)
-{
-    assert(x >= 0);
-    if (is_power_of_two(x))  return x;
-    // Right-propagate the leftmost 1-bit.
-    x |= (x >> 1);
-    x |= (x >> 2);
-    x |= (x >> 4);
-    x |= (x >> 8);
-    x |= (x >> 16);
-    assert(x < INT_MAX);
-    return x + 1;
-}
-
 struct tram *add_tram(struct tram_array *array, char *tram_id)
 {
     if (array->count == array->limit) {
-        array->limit = round_up_pow2(array->limit+1);
+        array->limit = (array->limit) ? 2*array->limit : 4;
         array->data  = realloc(array->data, array->limit*sizeof(array->data[0])); //|Todo: Check if NULL?
     }
 
