@@ -8,6 +8,10 @@
 #include <netdb.h>
 #include <ctype.h>
 
+#include <assert.h>
+#include <stdbool.h>
+#include <limits.h>
+
 /*
     The Tram data server (server.py) publishes messages over a custom protocol.
 
@@ -56,24 +60,165 @@
     Feel free to modify the code below, which already implements a TCP socket consumer and dumps the content to a string & byte array
 */
 
-void dump_buffer(char* name) {
-    int e;
-    size_t len = strlen(name);
-    for (size_t i = 0; i < len; i++) {
-        e = name[i];
-        printf("%-5d", e);
+#define MESSAGE_BUFFER_SIZE 512  // The maximum size of any message.
+
+struct message {
+    char    buffer[MESSAGE_BUFFER_SIZE];
+    int     buffer_index;
+
+    enum {
+        UNKNOWN,
+        LOCATION,
+        PASSENGER_COUNT,
+    }       type;
+
+    // We could put these fields into structs to make this like a tagged union if they vary more depending on the message type.
+    char   *tram_id;
+    char   *value;
+};
+
+char *read_content(struct message *message, int sockfd)
+{
+    uint8_t length;
+    int n = read(sockfd, &length, 1);
+    if (n < 0) {
+        perror("Error reading from the server");
+        exit(1);
     }
-    printf("\n\n");
-    for (size_t i = 0; i < len; i++) {
-        char c = name[i];
-        if (!isalpha(name[i]) && !isdigit(name[i]) && (c != '_') && (c != ' '))
-            c = '*';
-        printf("%-5c", c);
+
+    int  *index   = &message->buffer_index;
+    char *content = &message->buffer[*index];
+
+    if (*index + length >= MESSAGE_BUFFER_SIZE) {
+        fprintf(stderr, "There's not enough space in the buffer.\n");
+        exit(1);
     }
-    printf("\n\n");
+
+    // Read in a loop in case the OS gives us the data on the socket before we've read a full content.
+    int read_count = 0;
+    while (read_count < length) {
+        int n = read(sockfd, content, length-read_count);
+        if (n <= 0) {
+            perror("Error reading from the server");
+            exit(1);
+        }
+        read_count += n;
+    }
+    *index += length;
+
+    content[length] = '\0';
+    *index += 1;
+
+    return content;
 }
 
-int main(int argc, char *argv[]){
+void read_message(struct message *message, int sockfd)
+{
+    memset(message, 0, sizeof(*message));
+
+    char *msgtype_key = read_content(message, sockfd);
+    if (strcmp(msgtype_key, "MSGTYPE")) {
+        fprintf(stderr, "Unexpected content. Expected \"MSGTYPE\". Got \"%s\".\n", msgtype_key);
+        exit(1);
+    }
+
+    char *msgtype_val = read_content(message, sockfd);
+    if (!strcmp(msgtype_val, "LOCATION")) {
+        message->type = LOCATION;
+    } else if (!strcmp(msgtype_val, "PASSENGER_COUNT")) {
+        message->type = PASSENGER_COUNT;
+    } else {
+        fprintf(stderr, "Unexpected content. Expected a message type. Got \"%s\".\n", msgtype_val);
+        exit(1);
+    }
+
+    char *tram_id_key = read_content(message, sockfd);
+    if (strcmp(tram_id_key, "TRAM_ID")) {
+        fprintf(stderr, "Unexpected content. Expected \"TRAM_ID\". Got \"%s\".\n", tram_id_key);
+        exit(1);
+    }
+    message->tram_id = read_content(message, sockfd);
+
+    char *value_key = read_content(message, sockfd);
+    if (strcmp(value_key, "VALUE")) {
+        fprintf(stderr, "Unexpected content. Expected \"VALUE\". Got \"%s\".\n", value_key);
+        exit(1);
+    }
+    message->value = read_content(message, sockfd);
+}
+
+struct tram {
+    // It's wasteful to store these IDs as strings if we know they're always numbers,
+    // but until we know that for sure...
+    char id[255];
+    int  id_length;
+
+    char location[255];
+    int  location_length;
+
+    int  passenger_count;
+};
+
+struct tram_array {
+    struct tram *data;
+    int          limit;
+    int          count;
+};
+
+bool is_power_of_two(int x)
+{
+    if (x <= 0)  return false;
+    return !(x & (x - 1));
+}
+
+int round_up_pow2(int x)
+{
+    assert(x >= 0);
+    if (is_power_of_two(x))  return x;
+    // Right-propagate the leftmost 1-bit.
+    x |= (x >> 1);
+    x |= (x >> 2);
+    x |= (x >> 4);
+    x |= (x >> 8);
+    x |= (x >> 16);
+    assert(x < INT_MAX);
+    return x + 1;
+}
+
+struct tram *add_tram(struct tram_array *array, char *tram_id)
+{
+    if (array->count == array->limit) {
+        array->limit = round_up_pow2(array->limit+1);
+        array->data  = realloc(array->data, array->limit*sizeof(array->data[0])); //|Todo: Check if NULL?
+    }
+
+    struct tram *tram = &array->data[array->count];
+    memset(tram, 0, sizeof(*tram));
+    array->count += 1;
+
+    // |Cleanup: Using strlen() here is kind of dumb because this information was in the message and we discarded it. We could keep the length in the byte before the tram_id string or create some kind of string struct... but for now we're just embracing C-style strings.
+    tram->id_length = strlen(tram_id);
+    memcpy(tram->id, tram_id, tram->id_length);
+
+    // Initialise these values to -1 to show they've never been set.
+    tram->location_length = -1;
+    tram->passenger_count = -1;
+
+    return tram;
+}
+
+struct tram *find_tram(struct tram_array *array, char *tram_id)
+{
+    // |Speed: This is obviously very slow... If we expect more than a few trams, we should use a hash table or maybe just keep the array sorted so we can do a binary search.
+    for (int i = 0; i < array->count; i++) {
+        struct tram *tram = &array->data[i];
+        if (!strcmp(tram->id, tram_id))  return tram;
+    }
+    return NULL;
+}
+
+int main(int argc, char *argv[])
+{
 	if (argc < 2) {
         fprintf(stderr,"No port provided\n");
         exit(1);
@@ -112,16 +257,63 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-	char buffer[255];
-	while (1) {
-		memset(buffer, 0, sizeof(buffer));
-		int n = read(sockfd, buffer, sizeof(buffer));
-		if (n < 0) {
-			perror("Error reading from Server");
-            exit(1);
-        }
-		dump_buffer(buffer);
-	}
+    struct tram_array trams = {0};
+    struct message *message = malloc(sizeof(*message));
 
+	while (true) {
+        read_message(message, sockfd);
+
+        struct tram *tram = find_tram(&trams, message->tram_id);
+        if (!tram) {
+            tram = add_tram(&trams, message->tram_id);
+        }
+
+        switch (message->type) {
+            case LOCATION: {
+                tram->location_length = strlen(message->value);//|Cleanup: Keep the length.
+                memcpy(tram->location, message->value, tram->location_length);
+                tram->location[tram->location_length] = '\0';
+                break;
+            }
+            case PASSENGER_COUNT: {
+                char *end = NULL;
+                long number = strtol(message->value, &end, 10);
+
+                bool valid = true;
+                valid &= (0 <= number);
+                valid &= (number <= INT_MAX); //|Fixme: Not sure 2 billion is the right place to draw the line here...
+                valid &= (*message->value != '\0');
+                valid &= (*end == '\0'); //|Cleanup: Use the length instead.
+                if (!valid) {
+                    fprintf(stderr, "Unexpected passenger count for %s: \"%s\"\n", tram->id, message->value);
+                    exit(1);
+                }
+
+                tram->passenger_count = number;
+                break;
+            }
+            default:
+                fprintf(stderr, "Unexpected message type: %d\n", message->type);
+                exit(1);
+        }
+
+        // Print the dashboard. We'd normally prefer to buffer the output ourselves, but for now we'll do this without importing a whole string-builder module.
+
+        printf("\x1b[H\x1b[2J");  // Screen-clearing ANSI terminal codes.
+        for (int i = 0; i < trams.count; i++) {
+            struct tram *tram = &trams.data[i];
+            printf("\n");
+            printf("    %s:\n", tram->id);
+            if (tram->location_length >= 0) {
+                printf("        Location: %s\n", tram->location);
+            }
+            if (tram->passenger_count >= 0) {
+                printf("        Passenger Count: %d\n", tram->passenger_count);
+            }
+        }
+    }
+
+    free(message);
+    free(trams.data);
 	return 0;
 }
