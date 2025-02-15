@@ -205,19 +205,19 @@ struct tram *find_tram(struct tram_array *array, char *tram_id)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
+    if (argc < 2) {
         fprintf(stderr,"No port provided\n");
         exit(1);
-	}
+    }
 
     char *host = "127.0.0.1";
     char *port = argv[1];
 
-	struct sockaddr serv_addr;
+    struct sockaddr serv_addr;
     {
         struct addrinfo hints = {0};
-	    hints.ai_family   = AF_INET;
-	    hints.ai_socktype = SOCK_STREAM;
+        hints.ai_family   = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
 
         struct addrinfo *addrinfo;
         int result = getaddrinfo(host, port, &hints, &addrinfo);
@@ -231,22 +231,22 @@ int main(int argc, char *argv[])
         freeaddrinfo(addrinfo);
     }
 
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0){
-		perror("Socket failed");
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0){
+        perror("Socket failed");
         exit(1);
-	}
+    }
 
     int result = connect(sockfd, &serv_addr, sizeof(serv_addr));
-	if (result < 0) {
-		perror("Connection failed");
+    if (result < 0) {
+        perror("Connection failed");
         exit(1);
     }
 
     struct tram_array trams = {0};
     struct message *message = malloc(sizeof(*message));
 
-	while (true) {
+    while (true) {
         read_message(message, sockfd);
 
         struct tram *tram = find_tram(&trams, message->tram_id);
@@ -302,5 +302,5 @@ int main(int argc, char *argv[])
 
     free(message);
     free(trams.data);
-	return 0;
+    return 0;
 }
