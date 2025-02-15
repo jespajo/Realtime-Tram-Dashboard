@@ -97,7 +97,7 @@ char *read_content(struct message *message, int sockfd)
     // Read in a loop in case the OS gives us the data on the socket before we've read a full content.
     int read_count = 0;
     while (read_count < length) {
-        int n = read(sockfd, content, length-read_count);
+        int n = read(sockfd, content+read_count, length-read_count);
         if (n <= 0) {
             perror("Error reading from the server");
             exit(1);
